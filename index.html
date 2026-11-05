@@ -164,6 +164,9 @@ details.cites .meta{margin:4px 0 4px 10px}
       <label>Google Scholar profile link<input id="pScholar" placeholder="https://scholar.google.com/citations?user=..."></label>
       <label>OpenAlex author ID (optional)<input id="pOa" placeholder="A5023888391"></label>
     </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost" data-action="scholar-search">Search Google Scholar for my name</button>
+    </div>
     <p class="meta">Google Scholar has no public data API, so it cannot be synced directly. Export your papers from Scholar as BibTeX and import them below. Citation counts and citing papers come from OpenAlex, which indexes ORCID-linked works. Scholar's own counts can differ.</p>
     <div class="row" style="margin-top:8px">
       <button class="btn" data-action="save-profile">Save profile</button>
@@ -475,6 +478,12 @@ function clearAll(){
   if(!confirm('Delete all tracker data stored in this browser? Export a backup first if you need it.')) return;
   S=blank(); save(); fillProfile(); renderAll(); toast('All data deleted.');
 }
+function scholarSearch(){
+  const name=$('#pName').value.trim();
+  if(!name){ toast('Enter your name first.'); return; }
+  window.open('https://scholar.google.com/citations?view_op=search_authors&mauthors='+encodeURIComponent(name),'_blank','noopener');
+  toast('Copy your profile link from Scholar and paste it into the field above.');
+}
 function showTab(name){
   document.querySelectorAll('[data-view]').forEach(s=>{ s.hidden = s.id!=='tab-'+name; });
   document.querySelectorAll('nav [data-action="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
@@ -659,6 +668,7 @@ document.addEventListener('click',e=>{
   switch(el.dataset.action){
     case 'tab': showTab(el.dataset.tab); break;
     case 'sync': sync(); break;
+    case 'scholar-search': scholarSearch(); break;
     case 'save-profile': saveProfile(); break;
     case 'add-paper': addPaper(); break;
     case 'add-kw': addKeywords(); break;
