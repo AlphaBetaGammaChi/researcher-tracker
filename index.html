@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Researcher Tracker</title>
+<style>
+:root{
+  --bg:#f5f4f0; --panel:#ffffff; --fg:#1c1e22; --muted:#666b74; --line:#dedbd2;
+  --accent:#2d5b86; --accent2:#b8672f; --chip:#ebe9e2; --danger:#b03a2e;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181c; --panel:#1f2227; --fg:#e7e8ea; --muted:#9ca1aa; --line:#33373f;
+    --accent:#84b3e2; --accent2:#e3a072; --chip:#2a2e36; --danger:#e57b6e; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181c; --panel:#1f2227; --fg:#e7e8ea; --muted:#9ca1aa; --line:#33373f;
+  --accent:#84b3e2; --accent2:#e3a072; --chip:#2a2e36; --danger:#e57b6e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));max-width:1100px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 2px;font-weight:650;letter-spacing:-.01em}
+h2{font-size:16px;margin:0 0 10px;font-weight:650}
+.sub{color:var(--muted);margin:0 0 14px}
+nav{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:8px 10px;font:inherit;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;min-width:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums;font-weight:650}
+.stat span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+textarea{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+label{display:grid;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.row>label,.row>input{flex:1 1 180px}
+.row>button,.row>.btnlike{flex:0 0 auto}
+.row>select{flex:0 1 150px}
+button.btn{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:7px;padding:7px 12px;cursor:pointer}
+button.ghost{background:var(--chip);color:var(--fg)}
+button.danger{background:none;color:var(--danger);border:1px solid var(--line);border-radius:7px;padding:3px 9px;font:inherit;font-size:12px;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.wrap{overflow-x:auto}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;font-size:12px;margin:2px 4px 2px 0}
+.muted{color:var(--muted)}
+.meta{color:var(--muted);font-size:12.5px;margin:2px 0}
+.paper{padding:12px 0;border-bottom:1px solid var(--line)}
+.paper:last-child{border-bottom:0}
+.paper .t{font-weight:600}
+.paper .t a{color:var(--fg);text-decoration:none}
+.paper .t a:hover{text-decoration:underline}
+.barrow{display:grid;grid-template-columns:minmax(0,1fr) 2fr 40px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+.track{background:var(--chip);border-radius:4px;height:8px}
+.bar{height:8px;background:var(--accent);border-radius:4px}
+#net{width:100%;height:auto;display:block}
+.legend span{margin-right:14px;font-size:12px;color:var(--muted)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+a{color:var(--accent)}
+details.cites{margin-top:6px;font-size:13px}
+details.cites summary{cursor:pointer;color:var(--accent)}
+details.cites .meta{margin:4px 0 4px 10px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:8px;max-width:90vw;z-index:9;font-size:13px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<h1>Researcher Tracker</h1>
+<p class="sub" id="who">Set up your profile in the Profile tab, then sync.</p>
+
+<nav role="tablist">
+  <button data-action="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button data-action="tab" data-tab="papers" aria-selected="false">Papers</button>
+  <button data-action="tab" data-tab="venues" aria-selected="false">Journals &amp; publishers</button>
+  <button data-action="tab" data-tab="coauthors" aria-selected="false">Co-authors</button>
+  <button data-action="tab" data-tab="citations" aria-selected="false">Citing papers</button>
+  <button data-action="tab" data-tab="profile" aria-selected="false">Profile &amp; sync</button>
+</nav>
+
+<section id="tab-overview" data-view>
+  <div class="card"><div class="grid" id="stats"></div></div>
+  <div class="card">
+    <h2>Publications and citing papers per year</h2>
+    <div id="timeline"></div>
+    <div class="legend" style="margin-top:6px"><span><i class="dot" style="background:var(--accent)"></i>Your papers</span><span><i class="dot" style="background:var(--accent2)"></i>Papers citing you</span></div>
+  </div>
+  <div class="card">
+    <h2>Key interests</h2>
+    <p class="meta">Topics from OpenAlex across your papers, plus any keywords you add.</p>
+    <div id="topics"></div>
+    <h2 style="margin-top:16px">Your keywords</h2>
+    <div class="row">
+      <label>Add keywords (comma separated)<input id="kwInput" placeholder="e.g. soil carbon, remote sensing"></label>
+      <button class="btn" data-action="add-kw">Add</button>
+    </div>
+    <div id="keywords" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section id="tab-papers" data-view hidden>
+  <div class="card">
+    <div class="row">
+      <label>Search<input id="q" placeholder="Title, journal, author or topic" type="search"></label>
+      <label>Year<select id="yearF"><option value="">All years</option></select></label>
+    </div>
+  </div>
+  <div class="card" id="papers"></div>
+  <div class="card">
+    <h2>Add a paper manually</h2>
+    <div class="row">
+      <label>Title<input id="mTitle"></label>
+      <label>Year<input id="mYear" inputmode="numeric"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Journal or venue<input id="mJournal"></label>
+      <label>Publisher<input id="mPublisher"></label>
+      <label>DOI or link<input id="mDoi"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Co-authors (comma separated)<input id="mAuthors"></label>
+      <label>Topics (comma separated)<input id="mTopics"></label>
+    </div>
+    <p><button class="btn" data-action="add-paper">Add paper</button></p>
+  </div>
+</section>
+
+<section id="tab-venues" data-view hidden>
+  <div class="card"><h2>Journals and conferences</h2><div class="wrap" id="journals"></div></div>
+  <div class="card"><h2>Publishers</h2><div class="wrap" id="publishers"></div></div>
+</section>
+
+<section id="tab-coauthors" data-view hidden>
+  <div class="card">
+    <h2>Co-author network</h2>
+    <p class="meta">Lines join people who have written papers together. Thicker lines mean more joint papers. Shows the 35 most frequent collaborators, with you in the centre (orange).</p>
+    <svg id="net" viewBox="0 0 800 560" role="img" aria-label="Co-author network"></svg>
+  </div>
+  <div class="card"><h2>Collaborators</h2><div class="wrap" id="coauth"></div></div>
+</section>
+
+<section id="tab-citations" data-view hidden>
+  <div class="card">
+    <div class="row"><label>Search citing papers<input id="cq" type="search" placeholder="Title, author or venue"></label></div>
+    <p class="meta" id="citeCount"></p>
+  </div>
+  <div class="card" id="citers"></div>
+</section>
+
+<section id="tab-profile" data-view hidden>
+  <div class="card">
+    <h2>Your identity</h2>
+    <div class="row">
+      <label>Full name<input id="pName" autocomplete="name"></label>
+      <label>ORCID iD<input id="pOrcid" placeholder="0000-0002-1825-0097"></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label>Google Scholar profile link<input id="pScholar" placeholder="https://scholar.google.com/citations?user=..."></label>
+      <label>OpenAlex author ID (optional)<input id="pOa" placeholder="A5023888391"></label>
+    </div>
+    <p class="meta">Google Scholar has no public data API, so it cannot be synced directly. Export your papers from Scholar as BibTeX and import them below. Citation counts and citing papers come from OpenAlex, which indexes ORCID-linked works. Scholar's own counts can differ.</p>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" data-action="save-profile">Save profile</button>
+      <button class="btn ghost" id="syncBtn" data-action="sync">Sync from OpenAlex</button>
+    </div>
+    <p class="meta" id="syncStatus"></p>
+  </div>
+  <div class="card">
+    <h2>Import from BibTeX</h2>
+    <p class="meta">Paste the contents of a .bib file, for example from Google Scholar, a publisher or a reference manager. Entries already in the list (same title) are skipped.</p>
+    <textarea id="bib" placeholder="@article{...}"></textarea>
+    <p><button class="btn ghost" data-action="import-bib">Import entries</button></p>
+  </div>
+  <div class="card">
+    <h2>Backup</h2>
+    <div class="row">
+      <button class="btn ghost" data-action="export-json">Export JSON backup</button>
+      <button class="btn ghost" data-action="export-csv">Export papers CSV</button>
+      <label style="flex:0 1 260px">Restore from JSON backup<input type="file" id="jsonFile" accept="application/json,.json"></label>
+    </div>
+    <p style="margin-top:14px"><button class="btn danger" data-action="clear-all">Delete all data in this browser</button></p>
+  </div>
+</section>
+
+<footer class="meta" style="margin-top:24px;line-height:1.6">
+  Your data stays in this browser (localStorage). Nothing is uploaded. Sync sends only your ORCID iD or OpenAlex ID and name to <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, a free, open scholarly index. Export a JSON backup before clearing browser data.
+</footer>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const KEY='researcherTracker.v1', OA='https://api.openalex.org';
+const WORK_SELECT='id,doi,title,display_name,publication_year,type,cited_by_count,primary_location,authorships,topics';
+const CITER_SELECT='id,doi,title,display_name,publication_year,primary_location,authorships,referenced_works';
+
+function blank(){ return {profile:{name:'',orcid:'',scholar:'',openalexId:''},papers:[],excluded:[],keywords:[],lastSync:null}; }
+function load(){
+  try{ const raw=localStorage.getItem(KEY); return raw?Object.assign(blank(),JSON.parse(raw)):blank(); }
+  catch(e){ return blank(); }
+}
+let S=load();
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); }
+  catch(e){ toast('This browser would not save the data. Export a JSON backup to keep a copy.'); }
+}
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,4000); }
+function shortId(u){ return u?String(u).trim().split('/').pop():''; }
+function cleanOrcid(x){ const m=String(x||'').match(/\d{4}-\d{4}-\d{4}-\d{3}[\dX]/i); return m?m[0].toUpperCase():''; }
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function akey(a){ return a.id || 'name:'+String(a.name||'').toLowerCase().trim(); }
+function meKey(){ return S.profile.openalexId || 'name:'+(S.profile.name||'me').toLowerCase().trim(); }
+function safeHref(u){ return /^https?:\/\//.test(u||'')?u:'#'; }
+function link(p){
+  if(/^https?:\/\//.test(p.url||'')) return p.url;
+  if(p.doi) return 'https://doi.org/'+p.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//,'');
+  return '';
+}
+function status(msg){ $('#syncStatus').textContent=msg; }
+function busy(on){ const b=$('#syncBtn'); b.disabled=on; b.textContent=on?'Syncing…':'Sync from OpenAlex'; }
+
+/* ---------- OpenAlex ---------- */
+async function oa(path,params={}){
+  const u=new URL(OA+path);
+  for(const [k,v] of Object.entries(params)) u.searchParams.set(k,v);
+  const r=await fetch(u);
+  if(!r.ok) throw new Error('OpenAlex returned '+r.status+' for '+path);
+  return r.json();
+}
+async function fetchAll(path,params,max,onProg){
+  const out=[]; let cursor='*';
+  while(cursor && out.length<max){
+    const r=await oa(path,Object.assign({'per-page':'200'},params,{cursor}));
+    out.push(...r.results);
+    cursor=r.meta&&r.meta.next_cursor;
+    if(onProg) onProg(out.length);
+    if(!r.results.length) break;
+  }
+  return out;
+}
+function toPaper(w){
+  const loc=w.primary_location||{}, src=loc.source||{};
+  return {
+    id:w.id, source:'openalex', title:w.display_name||w.title||'Untitled',
+    year:w.publication_year||null, journal:src.display_name||'', publisher:src.host_organization_name||'',
+    doi:w.doi||'', url:loc.landing_page_url||'', type:w.type||'',
+    authors:(w.authorships||[]).map(a=>({name:(a.author&&a.author.display_name)||'Unknown',id:(a.author&&a.author.id)||''})),
+    topics:(w.topics||[]).map(t=>({name:t.display_name||'',subfield:(t.subfield&&t.subfield.display_name)||''})).filter(t=>t.name),
+    cites:w.cited_by_count||0, citedBy:[]
+  };
+}
+function toCiter(c){
+  const loc=c.primary_location||{};
+  return {
+    id:c.id, title:c.display_name||c.title||'Untitled', year:c.publication_year||null,
+    doi:c.doi||'', url:loc.landing_page_url||c.doi||c.id, venue:(loc.source&&loc.source.display_name)||'',
+    authors:(c.authorships||[]).map(a=>(a.author&&a.author.display_name)||'Unknown')
+  };
+}
+
+async function sync(){
+  const p=S.profile;
+  if(!p.name && !p.orcid && !p.openalexId){ toast('Add your name, ORCID iD or OpenAlex ID first.'); return; }
+  busy(true);
+  try{
+    status('Finding your OpenAlex author record…');
+    let a;
+    if(p.openalexId) a=await oa('/authors/'+shortId(p.openalexId));
+    else if(cleanOrcid(p.orcid)) a=await oa('/authors/orcid:'+cleanOrcid(p.orcid));
+    else{
+      const r=await oa('/authors',{search:p.name,'per-page':'5'});
+      a=r.results&&r.results[0];
+      if(!a) throw new Error('no OpenAlex author found for that name. Add your ORCID iD.');
+    }
+    p.openalexId=a.id;
+    p.orcid=cleanOrcid(a.orcid)||cleanOrcid(p.orcid);
+    if(!p.name) p.name=a.display_name;
+    const inst=(a.last_known_institutions||[]).map(i=>i.display_name).join(', ')||'no institution listed';
+    status(`Matched ${a.display_name} (${inst}). Downloading works…`);
+
+    const works=await fetchAll('/works',{filter:'authorships.author.id:'+shortId(a.id),select:WORK_SELECT},3000,n=>status(`Downloaded ${n} works…`));
+    const excluded=new Set(S.excluded);
+    const openalex=works.filter(w=>!excluded.has(w.id)).map(toPaper);
+    const oaTitles=new Set(openalex.map(x=>norm(x.title)));
+    const manual=S.papers.filter(x=>x.source!=='openalex' && !oaTitles.has(norm(x.title)));
+    S.papers=[...openalex,...manual];
+
+    const byShort=new Map(openalex.map(x=>[shortId(x.id),x]));
+    const ids=[...byShort.keys()].filter(k=>byShort.get(k).cites>0);
+    const seenPairs=new Set();
+    for(let i=0;i<ids.length;i+=40){
+      const batch=ids.slice(i,i+40);
+      status(`Looking up citing papers (${Math.min(i+40,ids.length)} of ${ids.length} cited works)…`);
+      const citers=await fetchAll('/works',{filter:'cites:'+batch.join('|'),select:CITER_SELECT},5000);
+      for(const c of citers){
+        const info=toCiter(c);
+        for(const r of (c.referenced_works||[])){
+          const paper=byShort.get(shortId(r));
+          const pairKey=paper && paper.id+'|'+info.id;
+          if(paper && !seenPairs.has(pairKey)){ seenPairs.add(pairKey); paper.citedBy.push(info); }
+        }
+      }
+    }
+    S.lastSync=new Date().toISOString();
+    save();
+    status(`Synced ${openalex.length} works on ${new Date().toLocaleString()}.`);
+    fillProfile(); renderAll();
+  }catch(e){
+    status('Sync failed: '+e.message+'. Check your internet connection and identifiers.');
+  }finally{ busy(false); }
+}
+
+/* ---------- Data helpers ---------- */
+function coGraph(){
+  const me=meKey(), people=new Map(), edges=new Map();
+  const ensure=(k,name)=>{ if(!people.has(k)) people.set(k,{key:k,name:name,count:0,years:[]}); return people.get(k); };
+  ensure(me,S.profile.name||'You');
+  for(const p of S.papers){
+    const list=new Map([[me,S.profile.name||'You']]);
+    for(const a of p.authors){ const k=akey(a); if(!list.has(k)) list.set(k,a.name); }
+    const keys=[...list.keys()];
+    for(const k of keys){ const pe=ensure(k,list.get(k)); pe.count++; if(p.year) pe.years.push(p.year); }
+    for(let i=0;i<keys.length;i++) for(let j=i+1;j<keys.length;j++){
+      const [a,b]=[keys[i],keys[j]].sort();
+      const ek=a+'||'+b;
+      if(!edges.has(ek)) edges.set(ek,{a,b,w:0});
+      edges.get(ek).w++;
+    }
+  }
+  return {me,people,edges};
+}
+function hIndex(vals){
+  const s=[...vals].sort((a,b)=>b-a); let h=0;
+  s.forEach((c,i)=>{ if(c>=i+1) h=i+1; });
+  return h;
+}
+function parseBib(text){
+  const out=[];
+  for(const body of text.split(/@\w+\s*[{(]/).slice(1)){
+    const f={};
+    const re=/(\w+)\s*=\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\}|"([^"]*)"|(\d+))/g;
+    let m;
+    while((m=re.exec(body))) f[m[1].toLowerCase()]=(m[2]??m[3]??m[4]??'').replace(/[{}]/g,'').replace(/\s+/g,' ').trim();
+    if(!f.title) continue;
+    const authors=(f.author||'').split(/\s+and\s+/i).map(s=>s.trim()).filter(Boolean).map(s=>{
+      if(s.includes(',')){ const [l,fi]=s.split(',',2); return (fi||'').trim()+' '+l.trim(); }
+      return s;
+    }).map(name=>({name,id:''}));
+    out.push({
+      id:'manual:bib:'+norm(f.title).slice(0,80), source:'bibtex', title:f.title,
+      year:parseInt(f.year,10)||null, journal:f.journal||f.booktitle||'', publisher:f.publisher||'',
+      doi:f.doi||'', url:f.url||'', type:'', authors,
+      topics:(f.keywords||'').split(/[,;]/).map(s=>({name:s.trim(),subfield:''})).filter(t=>t.name),
+      cites:0, citedBy:[]
+    });
+  }
+  return out;
+}
+function layout(nodes,edges,W,H){
+  const n=nodes.length, idx=new Map(nodes.map((nd,i)=>[nd.key,i]));
+  const P=nodes.map((_,i)=>({x:W/2+Math.cos(i*2.399)*W*0.3,y:H/2+Math.sin(i*2.399)*H*0.3,dx:0,dy:0}));
+  const k=Math.sqrt(W*H/n)*0.8;
+  let t=W/8;
+  for(let it=0;it<400;it++){
+    P.forEach(p=>{p.dx=0;p.dy=0;});
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      const a=P[i],b=P[j]; let x=a.x-b.x,y=a.y-b.y; const d=Math.hypot(x,y)||0.01; const f=(k*k)/d;
+      x/=d; y/=d; a.dx+=x*f; a.dy+=y*f; b.dx-=x*f; b.dy-=y*f;
+    }
+    for(const e of edges){
+      const a=P[idx.get(e.a)], b=P[idx.get(e.b)]; let x=a.x-b.x,y=a.y-b.y; const d=Math.hypot(x,y)||0.01;
+      const f=(d*d)/k*Math.sqrt(e.w); x/=d; y/=d;
+      a.dx-=x*f; a.dy-=y*f; b.dx+=x*f; b.dy+=y*f;
+    }
+    for(const p of P){ p.dx+=(W/2-p.x)*0.02; p.dy+=(H/2-p.y)*0.02; }
+    for(const p of P){
+      const m=Math.hypot(p.dx,p.dy)||0.01, s=Math.min(m,t)/m;
+      p.x=Math.min(W-30,Math.max(30,p.x+p.dx*s)); p.y=Math.min(H-30,Math.max(30,p.y+p.dy*s));
+    }
+    t*=0.985;
+  }
+  const out={}; nodes.forEach((nd,i)=>out[nd.key]=P[i]);
+  return out;
+}
+
+/* ---------- Actions ---------- */
+function addPaper(){
+  const title=$('#mTitle').value.trim();
+  if(!title){ toast('Enter a title.'); return; }
+  const split=s=>s.split(',').map(x=>x.trim()).filter(Boolean);
+  const doi=$('#mDoi').value.trim();
+  S.papers.push({
+    id:'manual:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), source:'manual', title,
+    year:parseInt($('#mYear').value,10)||null, journal:$('#mJournal').value.trim(), publisher:$('#mPublisher').value.trim(),
+    doi:/doi\.org|^10\./.test(doi)?doi:'', url:/^https?:\/\//.test(doi)?doi:'', type:'',
+    authors:split($('#mAuthors').value).map(name=>({name,id:''})),
+    topics:split($('#mTopics').value).map(name=>({name,subfield:''})),
+    cites:0, citedBy:[]
+  });
+  ['#mTitle','#mYear','#mJournal','#mPublisher','#mDoi','#mAuthors','#mTopics'].forEach(s=>$(s).value='');
+  save(); renderAll(); toast('Paper added.');
+}
+function importBib(){
+  const parsed=parseBib($('#bib').value);
+  if(!parsed.length){ toast('No BibTeX entries with a title were found.'); return; }
+  const have=new Set(S.papers.map(p=>norm(p.title)));
+  let added=0;
+  for(const p of parsed){ if(!have.has(norm(p.title))){ have.add(norm(p.title)); S.papers.push(p); added++; } }
+  $('#bib').value='';
+  save(); renderAll(); toast(`Imported ${added} new paper${added===1?'':'s'}.`);
+}
+function deletePaper(id){
+  const p=S.papers.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`Remove "${p.title}" from the tracker?`)) return;
+  S.papers=S.papers.filter(x=>x.id!==id);
+  if(p.source==='openalex' && !S.excluded.includes(id)) S.excluded.push(id);
+  save(); renderAll();
+}
+function saveProfile(){
+  const p=S.profile;
+  p.name=$('#pName').value.trim();
+  const prevOrcid=p.orcid, prevName=p.name;
+  p.orcid=cleanOrcid($('#pOrcid').value)||$('#pOrcid').value.trim();
+  p.scholar=$('#pScholar').value.trim();
+  const oaVal=$('#pOa').value.trim();
+  if(/^A\d+$/i.test(oaVal)) p.openalexId='https://openalex.org/'+oaVal.toUpperCase();
+  else if(oaVal) p.openalexId=oaVal;
+  // If the identity changed and no explicit OpenAlex ID was given, re-match on the next sync.
+  else if(p.orcid!==prevOrcid || p.name!==prevName) p.openalexId='';
+  save(); renderAll(); toast('Profile saved.');
+}
+function fillProfile(){
+  const p=S.profile;
+  $('#pName').value=p.name||''; $('#pOrcid').value=p.orcid||''; $('#pScholar').value=p.scholar||'';
+  $('#pOa').value=shortId(p.openalexId)||'';
+  status(S.lastSync?`Last synced ${new Date(S.lastSync).toLocaleString()}.`:'Not synced yet.');
+}
+function addKeywords(){
+  const vals=$('#kwInput').value.split(',').map(s=>s.trim()).filter(Boolean);
+  for(const v of vals) if(!S.keywords.some(k=>norm(k)===norm(v))) S.keywords.push(v);
+  $('#kwInput').value=''; save(); renderKeywords();
+}
+function removeKeyword(i){ S.keywords.splice(i,1); save(); renderKeywords(); }
+function download(name,text,type){
+  const url=URL.createObjectURL(new Blob([text],{type}));
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportJSON(){ download('researcher-tracker-backup.json',JSON.stringify(S,null,2),'application/json'); }
+function exportCSV(){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const cols=['Title','Year','Journal','Publisher','DOI','Authors','Topics','Citations','Citing papers'];
+  const rows=S.papers.map(p=>[p.title,p.year,p.journal,p.publisher,p.doi,p.authors.map(a=>a.name).join('; '),p.topics.map(t=>t.name).join('; '),p.cites,p.citedBy.length].map(q).join(','));
+  download('papers.csv',[cols.map(q).join(','),...rows].join('\n'),'text/csv');
+}
+function restoreJSON(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      S=Object.assign(blank(),JSON.parse(reader.result));
+      save(); fillProfile(); renderAll(); toast('Backup restored.');
+    }catch(e){ toast('That file is not a valid backup.'); }
+  };
+  reader.readAsText(file);
+}
+function clearAll(){
+  if(!confirm('Delete all tracker data stored in this browser? Export a backup first if you need it.')) return;
+  S=blank(); save(); fillProfile(); renderAll(); toast('All data deleted.');
+}
+function showTab(name){
+  document.querySelectorAll('[data-view]').forEach(s=>{ s.hidden = s.id!=='tab-'+name; });
+  document.querySelectorAll('nav [data-action="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
+  if(name==='coauthors') renderCo();
+}
+
+/* ---------- Rendering ---------- */
+function renderAll(){
+  renderStats(); renderTimeline(); renderTopics(); renderKeywords();
+  renderPapers(); renderVenues(); renderCo(); renderCitations();
+  const p=S.profile;
+  $('#who').textContent = p.name
+    ? `${p.name}${p.orcid?' · ORCID '+p.orcid:''}${S.lastSync?' · synced '+new Date(S.lastSync).toLocaleDateString():''}`
+    : 'Set up your profile in the Profile tab, then sync.';
+}
+function renderStats(){
+  const g=coGraph(), ps=S.papers;
+  const cites=ps.map(p=>p.cites||0);
+  const citers=new Set(); ps.forEach(p=>p.citedBy.forEach(c=>citers.add(c.id)));
+  const journals=new Set(ps.map(p=>p.journal).filter(Boolean));
+  const years=ps.map(p=>p.year).filter(Boolean);
+  const items=[
+    ['Papers',ps.length],
+    ['Citations',cites.reduce((a,b)=>a+b,0)],
+    ['h-index',hIndex(cites)],
+    ['i10-index',cites.filter(c=>c>=10).length],
+    ['Citing papers',citers.size],
+    ['Journals',journals.size],
+    ['Co-authors',Math.max(0,g.people.size-1)],
+    ['Years active',years.length?`${Math.min(...years)}–${Math.max(...years)}`:'—']
+  ];
+  $('#stats').innerHTML=items.map(([l,v])=>`<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
+}
+function renderTimeline(){
+  const pubs={}, cit={}, citers=new Map();
+  S.papers.forEach(p=>{
+    if(p.year) pubs[p.year]=(pubs[p.year]||0)+1;
+    p.citedBy.forEach(c=>{ if(c.year) citers.set(c.id,c.year); });
+  });
+  for(const y of citers.values()) cit[y]=(cit[y]||0)+1;
+  const yrs=[...Object.keys(pubs),...Object.keys(cit)].map(Number);
+  if(!yrs.length){ $('#timeline').innerHTML='<p class="muted">No dated papers yet. Sync or add papers to see the timeline.</p>'; return; }
+  const y0=Math.min(...yrs), y1=Math.max(...yrs), years=[];
+  for(let y=y0;y<=y1;y++) years.push(y);
+  const maxV=Math.max(1,...years.map(y=>Math.max(pubs[y]||0,cit[y]||0)));
+  const W=800,H=240,pad=30,base=H-30,plot=H-60,bw=(W-2*pad)/years.length;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Papers and citing papers per year" style="width:100%;height:auto;display:block">`;
+  for(let g=0;g<=4;g++){
+    const v=Math.round(maxV*g/4), y=base-plot*g/4;
+    s+=`<line x1="${pad}" x2="${W-pad}" y1="${y}" y2="${y}" style="stroke:var(--line)"/><text x="${pad-6}" y="${y+4}" text-anchor="end" font-size="11" style="fill:var(--muted)">${v}</text>`;
+  }
+  years.forEach((y,i)=>{
+    const x0=pad+i*bw, hP=(pubs[y]||0)/maxV*plot, hC=(cit[y]||0)/maxV*plot;
+    s+=`<rect x="${(x0+bw*0.12).toFixed(1)}" y="${(base-hP).toFixed(1)}" width="${(bw*0.36).toFixed(1)}" height="${hP.toFixed(1)}" rx="2" style="fill:var(--accent)"><title>${y}: ${pubs[y]||0} papers</title></rect>`;
+    s+=`<rect x="${(x0+bw*0.5).toFixed(1)}" y="${(base-hC).toFixed(1)}" width="${(bw*0.36).toFixed(1)}" height="${hC.toFixed(1)}" rx="2" style="fill:var(--accent2)"><title>${y}: ${cit[y]||0} citing papers</title></rect>`;
+    if(years.length<=12 || y%2===0) s+=`<text x="${(x0+bw/2).toFixed(1)}" y="${H-10}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${y}</text>`;
+  });
+  $('#timeline').innerHTML=s+'</svg>';
+}
+function renderTopics(){
+  const t=new Map(), sub=new Map();
+  S.papers.forEach(p=>{
+    const names=new Set(), subs=new Set();
+    p.topics.forEach(x=>{ names.add(x.name); if(x.subfield) subs.add(x.subfield); });
+    names.forEach(n=>t.set(n,(t.get(n)||0)+1));
+    subs.forEach(n=>sub.set(n,(sub.get(n)||0)+1));
+  });
+  const top=[...t.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const max=top[0]?top[0][1]:1;
+  const subTop=[...sub.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  $('#topics').innerHTML = top.length
+    ? top.map(([n,c])=>`<div class="barrow"><span>${esc(n)}</span><div class="track"><div class="bar" style="width:${(c/max*100).toFixed(1)}%"></div></div><span class="n">${c}</span></div>`).join('')
+      + (subTop.length?`<p class="meta" style="margin-top:12px">Fields: ${subTop.map(([n,c])=>`<span class="chip">${esc(n)} · ${c}</span>`).join('')}</p>`:'')
+    : '<p class="muted">No topics yet. Sync from OpenAlex or add topics to your papers.</p>';
+}
+function renderKeywords(){
+  $('#keywords').innerHTML = S.keywords.map((k,i)=>`<span class="chip">${esc(k)} <button data-action="remove-kw" data-i="${i}" aria-label="Remove ${esc(k)}" style="border:0;background:none;color:inherit;cursor:pointer;padding:0 2px">×</button></span>`).join('')
+    || '<span class="muted">No keywords yet.</span>';
+}
+function renderPapers(){
+  const q=norm($('#q').value), ysel=$('#yearF'), yf=ysel.value;
+  const years=[...new Set(S.papers.map(p=>p.year).filter(Boolean))].sort((a,b)=>b-a);
+  ysel.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  ysel.value=yf;
+  const list=S.papers.filter(p=>
+    (!ysel.value || String(p.year)===ysel.value) &&
+    (!q || norm([p.title,p.journal,p.publisher,p.authors.map(a=>a.name).join(' '),p.topics.map(t=>t.name).join(' ')].join(' ')).includes(q))
+  ).sort((a,b)=>(b.year||0)-(a.year||0)||b.cites-a.cites);
+  $('#papers').innerHTML = `<p class="meta">${list.length} of ${S.papers.length} papers</p>` + (list.map(p=>`
+    <div class="paper">
+      <div class="t">${link(p)?`<a href="${esc(safeHref(link(p)))}" target="_blank" rel="noopener">${esc(p.title)}</a>`:esc(p.title)}</div>
+      <div class="meta">${esc(p.year||'n.d.')} · ${esc(p.journal||'Venue unknown')}${p.publisher?' · '+esc(p.publisher):''} · <b>${p.cites}</b> citations · ${p.citedBy.length} citing you</div>
+      <div class="meta">${esc(p.authors.map(a=>a.name).slice(0,8).join(', '))}${p.authors.length>8?' et al.':''}</div>
+      <div style="margin-top:4px">${p.topics.slice(0,6).map(t=>`<span class="chip">${esc(t.name)}</span>`).join('')}</div>
+      ${p.citedBy.length?`<details class="cites"><summary>${p.citedBy.length} citing paper${p.citedBy.length===1?'':'s'}</summary>${p.citedBy.slice().sort((a,b)=>(b.year||0)-(a.year||0)).map(c=>`<div class="meta">${esc(c.year||'n.d.')} · ${c.url?`<a href="${esc(safeHref(c.url))}" target="_blank" rel="noopener">${esc(c.title)}</a>`:esc(c.title)}${c.authors.length?' — '+esc(c.authors.slice(0,3).join(', '))+(c.authors.length>3?' et al.':''):''}</div>`).join('')}</details>`:''}
+      <div style="margin-top:6px"><button class="danger" data-action="delete-paper" data-id="${esc(p.id)}">Remove</button></div>
+    </div>`).join('') || '<p class="muted">No papers match. Sync from OpenAlex or add one below.</p>');
+}
+function renderVenues(){
+  const j=new Map(), pub=new Map();
+  S.papers.forEach(p=>{
+    const jn=p.journal||'Unknown venue', pn=p.publisher||'Unknown publisher';
+    const e=j.get(jn)||{name:jn,publisher:p.publisher||'',papers:0,cites:0,last:0};
+    e.papers++; e.cites+=p.cites||0; e.last=Math.max(e.last,p.year||0); if(!e.publisher) e.publisher=p.publisher||'';
+    j.set(jn,e);
+    const q=pub.get(pn)||{name:pn,journals:new Set(),papers:0,cites:0};
+    q.papers++; q.cites+=p.cites||0; q.journals.add(jn);
+    pub.set(pn,q);
+  });
+  const jr=[...j.values()].sort((a,b)=>b.papers-a.papers||b.cites-a.cites);
+  const pr=[...pub.values()].sort((a,b)=>b.papers-a.papers||b.cites-a.cites);
+  $('#journals').innerHTML = jr.length
+    ? `<table><thead><tr><th>Journal or venue</th><th>Publisher</th><th class="n">Papers</th><th class="n">Citations</th><th class="n">Latest</th></tr></thead><tbody>${jr.map(e=>`<tr><td>${esc(e.name)}</td><td>${esc(e.publisher||'—')}</td><td class="n">${e.papers}</td><td class="n">${e.cites}</td><td class="n">${e.last||'—'}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted">No papers yet.</p>';
+  $('#publishers').innerHTML = pr.length
+    ? `<table><thead><tr><th>Publisher</th><th class="n">Journals</th><th class="n">Papers</th><th class="n">Citations</th></tr></thead><tbody>${pr.map(e=>`<tr><td>${esc(e.name)}</td><td class="n">${e.journals.size}</td><td class="n">${e.papers}</td><td class="n">${e.cites}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="muted">No papers yet.</p>';
+}
+function renderCo(){
+  const g=coGraph();
+  renderNet(g);
+  const rows=[...g.people.values()].filter(p=>p.key!==g.me).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name));
+  $('#coauth').innerHTML = rows.length
+    ? `<table><thead><tr><th>Collaborator</th><th class="n">Joint papers</th><th class="n">Years</th></tr></thead><tbody>${rows.map(p=>{
+        const ys=p.years, yr=ys.length?(Math.min(...ys)===Math.max(...ys)?Math.min(...ys):`${Math.min(...ys)}–${Math.max(...ys)}`):'—';
+        return `<tr><td>${esc(p.name)}</td><td class="n">${p.count}</td><td class="n">${yr}</td></tr>`;
+      }).join('')}</tbody></table>`
+    : '<p class="muted">No co-authors yet.</p>';
+}
+function renderNet(g){
+  const svg=$('#net'), W=800, H=560;
+  const others=[...g.people.values()].filter(p=>p.key!==g.me).sort((a,b)=>b.count-a.count).slice(0,35);
+  const nodes=[g.people.get(g.me),...others];
+  if(nodes.length<2){
+    svg.innerHTML=`<text x="400" y="280" text-anchor="middle" style="fill:var(--muted)">Add papers with co-authors to see the network.</text>`;
+    return;
+  }
+  const set=new Set(nodes.map(n=>n.key));
+  const edges=[...g.edges.values()].filter(e=>set.has(e.a)&&set.has(e.b));
+  const pos=layout(nodes,edges,W,H);
+  let s='';
+  for(const e of edges){
+    const A=pos[e.a], B=pos[e.b];
+    s+=`<line x1="${A.x.toFixed(1)}" y1="${A.y.toFixed(1)}" x2="${B.x.toFixed(1)}" y2="${B.y.toFixed(1)}" style="stroke:var(--muted);stroke-opacity:.35" stroke-width="${Math.min(0.6+e.w*0.7,5).toFixed(2)}"/>`;
+  }
+  nodes.forEach((n,i)=>{
+    const P=pos[n.key], isMe=n.key===g.me;
+    const r=isMe?11:4+Math.sqrt(n.count)*2.2;
+    s+=`<g><title>${esc(n.name)}: ${n.count} paper${n.count===1?'':'s'}</title>`;
+    s+=`<circle cx="${P.x.toFixed(1)}" cy="${P.y.toFixed(1)}" r="${r.toFixed(1)}" style="fill:${isMe?'var(--accent2)':'var(--accent)'}"/>`;
+    if(isMe || n.count>=3 || i<12) s+=`<text x="${P.x.toFixed(1)}" y="${(P.y-r-4).toFixed(1)}" text-anchor="middle" font-size="11" style="fill:var(--fg)">${esc(n.name)}</text>`;
+    s+='</g>';
+  });
+  svg.innerHTML=s;
+}
+function renderCitations(){
+  const q=norm($('#cq').value);
+  const map=new Map();
+  S.papers.forEach(p=>p.citedBy.forEach(c=>{
+    let e=map.get(c.id);
+    if(!e){ e=Object.assign({},c,{cites:[]}); map.set(c.id,e); }
+    e.cites.push(p.title);
+  }));
+  const list=[...map.values()]
+    .filter(c=>!q || norm([c.title,c.venue,(c.authors||[]).join(' ')].join(' ')).includes(q))
+    .sort((a,b)=>(b.year||0)-(a.year||0));
+  $('#citeCount').textContent=`${list.length} of ${map.size} citing papers`;
+  $('#citers').innerHTML = list.length
+    ? list.map(c=>`<div class="paper">
+        <div class="t">${c.url?`<a href="${esc(safeHref(c.url))}" target="_blank" rel="noopener">${esc(c.title)}</a>`:esc(c.title)}</div>
+        <div class="meta">${esc(c.year||'n.d.')} · ${esc(c.venue||'Venue unknown')}</div>
+        <div class="meta">${esc(c.authors.slice(0,6).join(', '))}${c.authors.length>6?' et al.':''}</div>
+        <div class="meta">Cites: ${c.cites.map(t=>esc(t)).join(' · ')}</div>
+      </div>`).join('')
+    : '<p class="muted">No citing papers found yet. Sync from OpenAlex, or check back later.</p>';
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-action]');
+  if(!el) return;
+  switch(el.dataset.action){
+    case 'tab': showTab(el.dataset.tab); break;
+    case 'sync': sync(); break;
+    case 'save-profile': saveProfile(); break;
+    case 'add-paper': addPaper(); break;
+    case 'add-kw': addKeywords(); break;
+    case 'remove-kw': removeKeyword(Number(el.dataset.i)); break;
+    case 'delete-paper': deletePaper(el.dataset.id); break;
+    case 'import-bib': importBib(); break;
+    case 'export-json': exportJSON(); break;
+    case 'export-csv': exportCSV(); break;
+    case 'clear-all': clearAll(); break;
+  }
+});
+$('#q').addEventListener('input',renderPapers);
+$('#yearF').addEventListener('change',renderPapers);
+$('#cq').addEventListener('input',renderCitations);
+$('#kwInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addKeywords(); } });
+$('#jsonFile').addEventListener('change',e=>{ if(e.target.files[0]) restoreJSON(e.target.files[0]); });
+
+fillProfile();
+renderAll();
+showTab('overview');
+</script>
+</body>
+</html>
